@@ -95,6 +95,7 @@ import { currentUserThinkingOpen, setAllUserThinkingOpen } from "@/components/th
  * same place — width polish only.
  */
 const COLUMN = "mx-auto w-full max-w-none px-6";
+const TAIL_STEP = 6;
 const DOCK = "mx-auto w-full max-w-[46rem] px-4";
 // The DOCK container's fixed width (46rem) and the plan marginalia's
 // geometry (owner, plan-placement round): the bare diagram sits in the
@@ -222,7 +223,11 @@ export function Chat({
 	initiallyCompacting = false,
 	initialConfigured = false,
 	kind = "teach",
+	initialTail,
 }: {
+	/** Phones render only this many latest entries until asked for more:
+	 *  re-parsing the markdown of a whole long session is what freezes the open. */
+	initialTail?: number;
 	chatId: string;
 	title: string;
 	initialMessages: LhMessage[];
@@ -259,6 +264,17 @@ export function Chat({
 	// turn stream is the VERBATIM AgentEvent passthrough the server emits.
 	const { messages, nativeMessages, hasConfirmedConversation, contextTokens, send, continueIfOwed, steer, steerQueue, submitAnswer, dismissQuestion, dismissProblem, questionDraft, saveQuestionDraft, setMessages, adoptRecord, status, error, stop, clearError, resumeStream, setReattachSettled } =
 		useChatSession({ chatId, initialMessages, initialError, initiallyInFlight });
+	const [tail, setTail] = useState(initialTail ?? Infinity);
+	const firstShown = Math.max(0, messages.length - tail);
+	// A link to one message (the graph's source links) needs that message drawn.
+	useEffect(() => {
+		const showAllForHash = () => {
+			if (window.location.hash) setTail(Infinity);
+		};
+		showAllForHash();
+		window.addEventListener("hashchange", showAllForHash);
+		return () => window.removeEventListener("hashchange", showAllForHash);
+	}, []);
 
 	const sessionFindScopeRef = useRef<HTMLDivElement | null>(null);
 	const scrollContextRef = useRef<StickToBottomContext | null>(null);
@@ -1410,8 +1426,19 @@ export function Chat({
 								/>
 							)}
 
+							{firstShown > 0 && (
+								<button
+									type="button"
+									data-testid="show-earlier"
+									onClick={() => setTail(tail + TAIL_STEP)}
+									className="self-center rounded-full border border-border/80 px-3 py-1.5 text-xs text-muted-foreground"
+								>
+									Show earlier ({firstShown})
+								</button>
+							)}
+
 							{messages.map((m, mi) =>
-								m.role === "user" && isSubagentSteer(m) ? (
+								mi < firstShown ? null : m.role === "user" && isSubagentSteer(m) ? (
 									// Sub-agent delivery (wake-pipeline steer): NO message bubble — the
 									// artifact card sits in the transcript column directly, full width
 									// and centered like the teacher's artifacts (contracts.ts "THE ASYNC

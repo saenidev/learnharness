@@ -192,7 +192,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 	return (
 		<SidebarContext.Provider value={{ open: open && !narrow, toggle, closeIfPhone }}>
 			{/* transitions gated on mount: no slide-in flash on page load */}
-			<div className={cn("flex h-dvh", mounted && "[&_.sidebar-motion]:transition-[width,margin,opacity]")}>{children}</div>
+			<div className={cn("flex h-dvh", mounted && "[&_.sidebar-motion]:transition-[width,margin,opacity,transform,visibility]")}>{children}</div>
 		</SidebarContext.Provider>
 	);
 }
@@ -423,8 +423,9 @@ function SessionsSidebar() {
 	   message is sent (and that message becomes its title). Search: a
 	   client-side filter over the poll snapshot — no server round trip. */
 	const newSession = useCallback(() => {
+		closeIfPhone();
 		router.push("/chat/new");
-	}, [router]);
+	}, [router, closeIfPhone]);
 
 	/* FUZZY (owner round 8, 2026-10-05): subsequence match ranked by
 	 * fuzzyScore — prefix beats word-boundary beats scattered. Empty query
@@ -657,20 +658,29 @@ function SessionsSidebar() {
 		// freshness (S6) — no interval, nothing standing.
 	}, [open, pathname, refresh]);
 
+	// Phones: fetch the loading screens up front, so tapping a session answers
+	// at once instead of waiting on the server render.
+	useEffect(() => {
+		if (open && isPhone()) for (const c of chats?.slice(0, 12) ?? []) router.prefetch("/chat/" + c.id);
+	}, [open, chats, router]);
+
 	return (
 		<>
-		{open && (
-			<button
-				type="button"
-				aria-label="Close sidebar"
-				onClick={closeIfPhone}
-				className="fixed inset-0 z-40 bg-black/50 md:hidden"
-			/>
-		)}
+		<button
+			type="button"
+			aria-label="Close sidebar"
+			aria-hidden={!open}
+			tabIndex={open ? 0 : -1}
+			onClick={closeIfPhone}
+			className={cn(
+				"fixed inset-0 z-40 bg-black/50 transition-opacity duration-200 md:hidden",
+				open ? "opacity-100" : "pointer-events-none opacity-0",
+			)}
+		/>
 		<aside
 			className={cn(
-				"sidebar-motion shrink-0 overflow-hidden duration-200 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40",
-				open ? "w-72" : "w-0",
+				"sidebar-motion shrink-0 overflow-hidden duration-200 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40 max-md:w-72",
+				open ? "w-72" : "w-0 max-md:invisible max-md:-translate-x-full",
 			)}
 			aria-hidden={!open}
 		>
@@ -734,7 +744,10 @@ function SessionsSidebar() {
 					<button
 						type="button"
 						data-testid="new-session-practice"
-						onClick={() => router.push("/chat/new?mode=practice")}
+						onClick={() => {
+							closeIfPhone();
+							router.push("/chat/new?mode=practice");
+						}}
 						className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 					>
 						<DumbbellIcon className="size-3" />
@@ -854,6 +867,7 @@ function SessionsSidebar() {
 									kbdSelected={i === kbdIndex}
 									onOpen={() => {
 										setKbdIndex(null);
+										closeIfPhone();
 										router.push(`/chat/${c.id}`);
 									}}
 									onContextMenu={(e) => openContext(e, c)}

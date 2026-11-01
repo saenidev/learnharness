@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Chat } from "@/components/chat";
 import { slotsConfigured } from "@/src/core";
@@ -19,6 +20,7 @@ export default async function ChatPage({
 	// over the settings record, server-read — the same gate home/new read. The
 	// server's 503 stays the truth; this only decides whether the pill rides.
 	const record = readSettingsRecord();
+	const phone = /iPhone|Android.*Mobile/.test((await headers()).get("user-agent") ?? "");
 	return (
 		<Chat
 			key={chat.id}
@@ -36,6 +38,7 @@ export default async function ChatPage({
 			// attach (busy shimmer + poll), never resurrect the stale record.
 			initiallyInFlight={isTurnRunning(chat.id)}
 			initiallyCompacting={compactionInFlight(chat.id)}
+			initialTail={phone ? 6 : undefined}
 		/>
 	);
 }

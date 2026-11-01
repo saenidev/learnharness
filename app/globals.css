@@ -254,6 +254,61 @@ body {
 	}
 }
 
+/* Phones: backdrop blur re-samples everything behind it on every frame, which
+   is the most expensive thing on screen over a moving graph, and the panels are
+   nearly opaque anyway. Off-screen transcript entries skip layout and paint. */
+@media (max-width: 767px) {
+	* {
+		-webkit-backdrop-filter: none !important;
+		backdrop-filter: none !important;
+	}
+	[data-session-find-root] > * {
+		content-visibility: auto;
+		contain-intrinsic-size: auto 160px;
+	}
+}
+
+/* Touch has no hover, so without this a tap shows nothing until the result
+   lands. Press state is instant; release eases back. */
+@media (hover: none) {
+	html {
+		-webkit-tap-highlight-color: transparent;
+	}
+	button,
+	a,
+	label,
+	summary,
+	[role="button"] {
+		touch-action: manipulation;
+	}
+}
+@media (hover: none) and (prefers-reduced-motion: no-preference) {
+	button:not(.sidebar-motion),
+	a,
+	label,
+	summary,
+	[role="button"] {
+		transition:
+			transform 140ms ease-out,
+			opacity 140ms ease-out,
+			background-color 150ms,
+			border-color 150ms,
+			color 150ms;
+	}
+	button:not(.fixed):active,
+	a:active,
+	label:active,
+	summary:active,
+	[role="button"]:active {
+		opacity: 0.65;
+		transform: scale(0.97);
+		transition-duration: 0ms;
+	}
+	[data-session-find-root] {
+		animation: lh-card-enter 180ms ease-out;
+	}
+}
+
 /* Thin dark native scrollbar (app-wide): dark thumb, transparent track. */
 * {
 	scrollbar-width: thin;

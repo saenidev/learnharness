@@ -332,12 +332,19 @@ export function ChatGPTConnection({ labelClassName }: { setup?: boolean; labelCl
 	const ui = useContext(Context);
 	const active = ui.status.accounts.find((a) => a.id === ui.status.activeId && a.connected);
 	const accounts = ui.status.accounts.filter((a) => a.connected);
+	// OpenAI redirects sign-in to 127.0.0.1 on the server's machine, so it can
+	// never finish from a phone. The connection is server-owned: one sign-in
+	// there serves every browser.
+	const [host, setHost] = useState<string>();
+	useEffect(() => setHost(window.location?.hostname), []);
+	const remote = !active && !!host && !["127.0.0.1", "localhost"].includes(host);
 	return <div className="flex flex-col gap-2" data-testid="chatgpt-connection">
-		<ConnectionRow label="ChatGPT" labelClassName={labelClassName} actionTestid={active ? undefined : "chatgpt-login"} action={active ? "Manage…" : "Connect"} disabled={!ui.status.available || ui.busy || ui.status.pending} onAction={() => active ? ui.manage(active.id) : ui.connect()}>
+		<ConnectionRow label="ChatGPT" labelClassName={labelClassName} actionTestid={active ? undefined : "chatgpt-login"} action={active ? "Manage…" : "Connect"} disabled={remote || !ui.status.available || ui.busy || ui.status.pending} onAction={() => active ? ui.manage(active.id) : ui.connect()}>
 			{active && <select aria-label="ChatGPT account" value={active.id} disabled={ui.busy || ui.status.pending} onChange={(event) => ui.select(event.target.value)} className="min-w-0 rounded-sm border border-border bg-background px-2 py-1 text-xs text-foreground">
 				{accounts.map((a) => <option key={a.id} value={a.id}>{a.email || "ChatGPT account"}</option>)}
 			</select>}
 		</ConnectionRow>
+		{remote && <p className="text-xs text-muted-foreground" data-testid="chatgpt-remote-note">Sign in on the computer running this server: open http://127.0.0.1:{window.location.port} there, then Settings → Providers. It then works here too.</p>}
 		{ui.inlineError && <p role="alert" className="text-xs text-red-400">{ui.inlineError}</p>}
 		{ui.warning && <div role="alert" data-testid="chatgpt-revocation-warning" className="rounded-sm border border-border px-3 py-2 text-xs text-muted-foreground">{ui.warning}<button type="button" className="ml-2 cursor-pointer underline underline-offset-2" onClick={ui.dismissWarning}>Dismiss</button></div>}
 	</div>;

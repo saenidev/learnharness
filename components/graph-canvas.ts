@@ -311,6 +311,11 @@ const COMMIT_DEBOUNCE_MS = 250; // settle → ledger PUT delay (new drags cancel
  *  live-physics frame pays one tiny blit instead of 32 clusters × 4
  *  offset polygons re-rasterized at DPR 2 (the old GPU coil-whine). */
 const REGION_EVERY = 3; // live-sim frames: rebuild every Nth, blit the rest
+// Phones: the region blur is CPU work over every pixel, and a 3x backing store
+// quadruples each canvas fill for detail no one can see at this size. So: half
+// the bitmap, no rebuilds while the sim moves, and at most 2x.
+const isPhone = () => window.innerWidth < 768;
+const canvasDpr = () => (isPhone() ? Math.min(window.devicePixelRatio || 1, 2) : window.devicePixelRatio || 1);
 
 
 
@@ -1202,7 +1207,7 @@ export class GraphCanvasRenderer {
 	private syncSize(): void {
 		const w = this.canvas.clientWidth;
 		const h = this.canvas.clientHeight;
-		const dpr = window.devicePixelRatio || 1;
+		const dpr = canvasDpr();
 		const bw = Math.max(1, Math.round(w * dpr));
 		const bh = Math.max(1, Math.round(h * dpr));
 		if (this.canvas.width !== bw || this.canvas.height !== bh) {
@@ -1465,7 +1470,7 @@ export class GraphCanvasRenderer {
 		// floor is the padded rect's own reach, so dims stay finite (long
 		// side ≤ bitmap · (1 + span/2·pad)) however tight the search.
 		const spanNow = Math.max(maxX - minX, maxY - minY);
-		const cell = Math.max(spanNow, padWorld * 2) / tuning.bitmap;
+		const cell = Math.max(spanNow, padWorld * 2) / (isPhone() ? tuning.bitmap / 2 : tuning.bitmap);
 		minX -= padWorld;
 		minY -= padWorld;
 		maxX += padWorld;
@@ -1608,7 +1613,7 @@ export class GraphCanvasRenderer {
 		if (!data || !settings) return;
 		const w = this.canvas.clientWidth;
 		const h = this.canvas.clientHeight;
-		const dpr = window.devicePixelRatio || 1;
+		const dpr = canvasDpr();
 		const ctx = this.ctx;
 
 		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1619,7 +1624,7 @@ export class GraphCanvasRenderer {
 		// every REGION_EVERY-th frame (others blit the last bitmap).
 		if (
 			this.regionBuiltVersion !== this.geoVersion &&
-			(!this.simActive || this.frameCount % REGION_EVERY === 0)
+			(!this.simActive || !this.regionCanvas || (!isPhone() && this.frameCount % REGION_EVERY === 0))
 		) {
 			this.buildRegions();
 			this.regionBuiltVersion = this.geoVersion;

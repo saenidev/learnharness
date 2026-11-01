@@ -170,9 +170,15 @@ export function failedOutputCallIds(messages: readonly LhMessage[]): ReadonlySet
 
 // ─── id minting ──────────────────────────────────────────────────────────────
 
+/** 8 hex chars. Not crypto.randomUUID: browsers only expose that on HTTPS and
+ *  localhost, and a phone reaches this app over plain http on the tailnet. */
+function shortId(): string {
+	return Array.from(crypto.getRandomValues(new Uint8Array(4)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
 /** The app-wide message id shape (same as the UIMessage-era mint). */
 export function newMessageId(): string {
-	return `msg_${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`;
+	return `msg_${Date.now().toString(36)}_${shortId()}`;
 }
 
 // ─── constructors (the input-event → native append mapping lives in
@@ -244,7 +250,7 @@ export function newPlanBlockMessage(
 	block: unknown,
 ): LhMarkerMessage {
 	return {
-		id: `pb_${Date.now().toString(36)}_${crypto.randomUUID().slice(0, 8)}`,
+		id: `pb_${Date.now().toString(36)}_${shortId()}`,
 		role: "custom",
 		customType: "plan-block",
 		content: "",

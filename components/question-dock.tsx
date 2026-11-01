@@ -912,7 +912,7 @@ function QuestionDockForm({
 						/>
 					)}
 					<div className="flex items-center justify-between gap-2 p-1">
-						<span aria-hidden className="pl-1.5 text-xs text-muted-foreground">
+						<span aria-hidden className="pl-1.5 text-xs text-muted-foreground [@media(hover:none)]:invisible">
 								{compactionRunning ? "compacting session…" : "↵ submits · ⇧↵ newline"}
 						</span>
 						<Button

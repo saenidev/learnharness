@@ -53,6 +53,12 @@ import type { UpdateState } from "@/components/settings/update-settings.tsx";
 import { FilePathDropZone } from "@/components/file-path-drop-zone";
 const SIDEBAR_AUTOCLOSE = 928;
 
+/* Phones: the sidebar is a drawer over the page, not a column beside it (288px
+ * of a 375px screen leaves nothing to read). It starts closed, closes on
+ * navigation, and never writes the persisted desktop preference. Mirrors
+ * Tailwind's `md` breakpoint, which the drawer's max-md: classes use. */
+const isPhone = () => window.innerWidth < 768;
+
 // Module scope, guarded for SSR (the server has no navigator).
 const IS_ELECTRON = typeof navigator !== "undefined" && navigator.userAgent.includes("Electron");
 
@@ -84,9 +90,10 @@ declare global {
 	}
 }
 
-const SidebarContext = createContext<{ open: boolean; toggle: () => void }>({
+const SidebarContext = createContext<{ open: boolean; toggle: () => void; closeIfPhone: () => void }>({
 	open: false,
 	toggle: () => {},
+	closeIfPhone: () => {},
 });
 
 export function useSidebar() {
@@ -130,7 +137,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 
 		const stored = localStorage.getItem(STORAGE_KEY);
 		// Default: open (first run introduces the sidebar).
-		setOpen(stored === null ? true : stored === "1");
+		setOpen(!isPhone() && (stored === null ? true : stored === "1"));
 		setMounted(true);
 		return () => off?.();
 	}, []);
@@ -160,10 +167,14 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 			return;
 		}
 		setOpen((v) => {
-			localStorage.setItem(STORAGE_KEY, v ? "0" : "1");
+			if (!isPhone()) localStorage.setItem(STORAGE_KEY, v ? "0" : "1");
 			return !v;
 		});
 	}, [narrow, open]);
+
+	const closeIfPhone = useCallback(() => {
+		if (isPhone()) setOpen(false);
+	}, []);
 
 	// ⌘B: the global shortcut dispatches kbdEventForAction("toggle-sidebar")
 	// and the context answers on exactly that name — the shared spelling
@@ -179,7 +190,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 	}, [toggle]);
 
 	return (
-		<SidebarContext.Provider value={{ open: open && !narrow, toggle }}>
+		<SidebarContext.Provider value={{ open: open && !narrow, toggle, closeIfPhone }}>
 			{/* transitions gated on mount: no slide-in flash on page load */}
 			<div className={cn("flex h-dvh", mounted && "[&_.sidebar-motion]:transition-[width,margin,opacity]")}>{children}</div>
 		</SidebarContext.Provider>
@@ -390,7 +401,7 @@ export type SessionKindFilter = "teach" | "all" | "practice";
 const KIND_FILTER_KEY = "lh:session-kind-filter";
 
 function SessionsSidebar() {
-	const { open, toggle } = useSidebar();
+	const { open, toggle, closeIfPhone } = useSidebar();
 	const [chats, setChats] = useState<ChatListItem[] | null>(null);
 	const [query, setQuery] = useState("");
 	const [kindFilter, setKindFilter] = useState<SessionKindFilter>("all");
@@ -405,6 +416,7 @@ function SessionsSidebar() {
 	const pathname = usePathname();
 	const router = useRouter();
 	const { open: openSettings } = useSettingsDialog();
+	useEffect(closeIfPhone, [pathname, closeIfPhone]);
 
 	/* New session (owner, 2026-09-13): NO POST — the button opens the
 	   sessionless draft view; the session is created only when the first
@@ -646,8 +658,20 @@ function SessionsSidebar() {
 	}, [open, pathname, refresh]);
 
 	return (
+		<>
+		{open && (
+			<button
+				type="button"
+				aria-label="Close sidebar"
+				onClick={closeIfPhone}
+				className="fixed inset-0 z-40 bg-black/50 md:hidden"
+			/>
+		)}
 		<aside
-			className={cn("sidebar-motion shrink-0 overflow-hidden duration-200", open ? "w-72" : "w-0")}
+			className={cn(
+				"sidebar-motion shrink-0 overflow-hidden duration-200 max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-40",
+				open ? "w-72" : "w-0",
+			)}
 			aria-hidden={!open}
 		>
 			<div className="flex h-full w-72 flex-col border-r bg-background">
@@ -853,7 +877,7 @@ function SessionsSidebar() {
 						<Hint label="Settings" action="open-settings" side="right">
 							<button
 								type="button"
-								onClick={() => openSettings()}
+								onClick={() => { closeIfPhone(); openSettings(); }}
 								data-testid="settings-entry"
 								className="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
 							>
@@ -939,6 +963,7 @@ function SessionsSidebar() {
 					onDeleted={onDeleted}
 				/>
 			</aside>
+		</>
 	);
 }
 

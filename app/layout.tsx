@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { JetBrains_Mono, Source_Sans_3 } from "next/font/google";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -16,6 +16,13 @@ const prose = Source_Sans_3({ subsets: ["latin"], variable: "--font-sans3" });
 export const metadata: Metadata = {
 	title: "Learning Harness",
 	description: "A teacher agent with a memory — sessions, quizzes, and a knowledge graph of what you know.",
+	appleWebApp: { capable: true, title: "LearnHarness", statusBarStyle: "black" },
+};
+
+export const viewport: Viewport = {
+	themeColor: "#141414",
+	// Android: the keyboard shrinks h-dvh, keeping the composer above it.
+	interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -246,6 +246,14 @@ body {
 	line-height: 1.25;
 }
 
+/* iOS Safari zooms the whole page when a focused field's text is under 16px,
+   and never zooms back. Desktop keeps its compact sizes. */
+@media (max-width: 767px), (pointer: coarse) {
+	input:not([type="checkbox"], [type="radio"]), textarea, select {
+		font-size: 16px !important;
+	}
+}
+
 /* Thin dark native scrollbar (app-wide): dark thumb, transparent track. */
 * {
 	scrollbar-width: thin;

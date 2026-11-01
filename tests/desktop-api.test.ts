@@ -45,7 +45,7 @@ test("desktop capability injects only trusted app mainframe exact-origin API req
 	assert.equal(desktopAPIHeaders(details, origin, null, [win])[HEADER], undefined, "externally launched desktop dev receives no packaged capability");
 });
 
-test("all methods fail closed for desktop missing/wrong secret; API-only matcher covers SSE/settings/spending", () => {
+test("all methods fail closed for desktop missing/wrong secret; matcher covers SSE/settings/spending, pages stay outside the secret", () => {
 	assert(desktopAPIAuthorized(new Headers(), {}), "browser-only API-key mode unchanged");
 	assert(!desktopAPIAuthorized(new Headers({ [HEADER]: secret }), { LH_DESKTOP_SERVER: "1" }), "missing server secret must not disable authorization");
 	for (const value of [undefined, "", "wrong", secret + ", " + secret]) {
@@ -53,7 +53,8 @@ test("all methods fail closed for desktop missing/wrong secret; API-only matcher
 	}
 	assert(desktopAPIAuthorized(new Headers({ [HEADER]: secret }), { LH_DESKTOP_SERVER: "1", LH_DESKTOP_API_SECRET: secret }));
 	for (const pathname of ["/api/events", "/api/chat", "/api/settings/models", "/api/chats/scratch/markdown"]) assert(unstable_doesProxyMatch({ config, nextConfig: {}, url: origin + pathname }));
-	assert(!unstable_doesProxyMatch({ config, nextConfig: {}, url: origin + "/chat/new" }));
+	assert(unstable_doesProxyMatch({ config, nextConfig: {}, url: origin + "/chat/new" }), "the host gate covers pages too");
+	assert(!unstable_doesProxyMatch({ config, nextConfig: {}, url: origin + "/_next/static/x.js" }));
 	const originalMarker = process.env.LH_DESKTOP_SERVER;
 	const originalSecret = process.env.LH_DESKTOP_API_SECRET;
 	try {
